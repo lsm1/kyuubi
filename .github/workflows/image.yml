@@ -22,9 +22,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build Kyuubi Docker Image
-        run: docker build --tag apache/kyuubi:latest --file docker/Dockerfile .
+        run: docker build --tag apache/kyuubi:master-snapshot --file docker/Dockerfile .
       - name: Docker image
         run: docker images
       - name: Push Docker image
-        run: docker push apache/kyuubi:latest
+        run: docker push apache/kyuubi:master-snapshot
 
