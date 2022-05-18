@@ -30,10 +30,10 @@ The Apache Software Foundation (https://www.apache.org/)."""
 ]
 
 def append(notice_file, append_file):
-    with open(notice_file, 'r') as f:
+    with open(notice_file, 'r', encoding='utf-8') as f:
         notice_text = f.read()
 
-    with open(append_file, 'r') as f:
+    with open(append_file, 'r', encoding='utf-8') as f:
         append_text = f.read()
 
     for text in redundant_text_list:
@@ -42,7 +42,7 @@ def append(notice_file, append_file):
     append_text = append_text.strip()
 
     if not append_text in notice_text:
-        with open(notice_file, 'a') as f:
+        with open(notice_file, 'a', encoding='utf-8') as f:
             f.write(append_text)
             f.write('\n\n')
 
