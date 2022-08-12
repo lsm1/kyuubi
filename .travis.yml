@@ -23,8 +23,7 @@ virt: vm
 env: SPARK_LOCAL_IP=localhost
 
 branches:
-  only:
-    - master
+  - '**'
 
 language: java
 
