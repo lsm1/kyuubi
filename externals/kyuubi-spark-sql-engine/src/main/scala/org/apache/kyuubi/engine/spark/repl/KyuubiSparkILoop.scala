@@ -18,6 +18,7 @@
 package org.apache.kyuubi.engine.spark.repl
 
 import java.io.{ByteArrayOutputStream, File}
+import java.util.concurrent.locks.ReentrantLock
 
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter.IR
@@ -30,7 +31,8 @@ import org.apache.spark.util.MutableURLClassLoader
 
 private[spark] case class KyuubiSparkILoop private (
     spark: SparkSession,
-    output: ByteArrayOutputStream)
+    output: ByteArrayOutputStream,
+    needLock: Boolean)
   extends SparkILoop(None, new JPrintWriter(output)) {
 
   val result = new DataFrameHolder(spark)
@@ -72,25 +74,27 @@ private[spark] case class KyuubiSparkILoop private (
       Thread.currentThread().setContextClassLoader(currentClassLoader)
     }
 
-    this.beQuietDuring {
-      // SparkSession/SparkContext and their implicits
-      this.bind("spark", classOf[SparkSession].getCanonicalName, spark, List("""@transient"""))
-      this.bind(
-        "sc",
-        classOf[SparkContext].getCanonicalName,
-        spark.sparkContext,
-        List("""@transient"""))
+    withLockIfNeed {
+      this.beQuietDuring {
+        // SparkSession/SparkContext and their implicits
+        this.bind("spark", classOf[SparkSession].getCanonicalName, spark, List("""@transient"""))
+        this.bind(
+          "sc",
+          classOf[SparkContext].getCanonicalName,
+          spark.sparkContext,
+          List("""@transient"""))
 
-      this.interpret("import org.apache.spark.SparkContext._")
-      this.interpret("import spark.implicits._")
-      this.interpret("import spark.sql")
-      this.interpret("import org.apache.spark.sql.functions._")
+        this.interpret("import org.apache.spark.SparkContext._")
+        this.interpret("import spark.implicits._")
+        this.interpret("import spark.sql")
+        this.interpret("import org.apache.spark.sql.functions._")
 
-      // for feeding results to client, e.g. beeline
-      this.bind(
-        "result",
-        classOf[DataFrameHolder].getCanonicalName,
-        result)
+        // for feeding results to client, e.g. beeline
+        this.bind(
+          "result",
+          classOf[DataFrameHolder].getCanonicalName,
+          result)
+      }
     }
   }
 
@@ -101,7 +105,9 @@ private[spark] case class KyuubiSparkILoop private (
   def interpretWithRedirectOutError(statement: String): IR.Result = {
     Console.withOut(output) {
       Console.withErr(output) {
-        this.interpret(statement)
+        withLockIfNeed {
+          this.interpret(statement)
+        }
       }
     }
   }
@@ -111,12 +117,27 @@ private[spark] case class KyuubiSparkILoop private (
     output.reset()
     res
   }
+
+  private def withLockIfNeed[T](f: => T): T = {
+    if (needLock) {
+      KyuubiSparkILoop.interpretLock.lockInterruptibly()
+      try {
+        f
+      } finally {
+        KyuubiSparkILoop.interpretLock.unlock()
+      }
+    } else {
+      f
+    }
+  }
 }
 
 private[spark] object KyuubiSparkILoop {
-  def apply(spark: SparkSession): KyuubiSparkILoop = {
+  private val interpretLock = new ReentrantLock()
+
+  def apply(spark: SparkSession, needLock: Boolean): KyuubiSparkILoop = {
     val os = new ByteArrayOutputStream()
-    val iLoop = new KyuubiSparkILoop(spark, os)
+    val iLoop = new KyuubiSparkILoop(spark, os, needLock)
     iLoop.initialize()
     iLoop
   }

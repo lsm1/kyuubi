@@ -445,4 +445,39 @@ trait SparkQueryTests extends SparkDataTypeTests with HiveJDBCTestHelper {
         expectedFormat = "thrift")
     }
   }
+
+  test("scala sync interpret") {
+    val executeCode = {
+      s"""
+         |val script = \"SELECT 1,2,3,4,4,5,5\"
+         |val df= spark.sql(script)
+         |df.show()
+         |df.show()
+         |df.show()
+         |val bdata = sc.broadcast(List(1, 2))
+         |sc.parallelize(1 to 2, 1).map(_ => bdata.value.size).collect()
+         |""".stripMargin
+    }
+    val count = 15
+    val s = new java.util.concurrent.atomic.AtomicInteger()
+    val countDownLatch = new java.util.concurrent.CountDownLatch(count)
+    for (i <- 0 until count) {
+      new Thread(() => {
+          withJdbcStatement() { statement =>
+            try {
+              statement.execute("SET kyuubi.engine.spark.scala.sync.interpret=true")
+              statement.execute("SET kyuubi.operation.language=scala")
+              executeCode.split("\n").filter(_.nonEmpty).foreach { code =>
+                statement.executeQuery(code)
+              }
+              s.incrementAndGet()
+            } finally {
+              countDownLatch.countDown()
+            }
+          }
+        }).start()
+    }
+    countDownLatch.await()
+    assert(s.intValue() == count)
+  }
 }

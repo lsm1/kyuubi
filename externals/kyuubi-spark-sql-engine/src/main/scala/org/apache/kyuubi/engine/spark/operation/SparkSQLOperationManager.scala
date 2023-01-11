@@ -87,7 +87,10 @@ class SparkSQLOperationManager private (name: String) extends OperationManager(n
               new PlanOnlyStatement(session, statement, mode)
           }
         case OperationLanguages.SCALA =>
-          val repl = sessionToRepl.getOrElseUpdate(session.handle, KyuubiSparkILoop(spark))
+          val needLock = spark.conf.getOption(ENGINE_SPARK_SCALA_SYNC_INTERPRET.key)
+            .map(_.toBoolean).getOrElse(getConf.get(ENGINE_SPARK_SCALA_SYNC_INTERPRET))
+          val repl =
+            sessionToRepl.getOrElseUpdate(session.handle, KyuubiSparkILoop(spark, needLock))
           new ExecuteScala(session, repl, statement, runAsync, queryTimeout)
         case OperationLanguages.PYTHON =>
           try {

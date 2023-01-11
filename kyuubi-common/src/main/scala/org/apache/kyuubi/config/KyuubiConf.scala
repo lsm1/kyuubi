@@ -2440,6 +2440,13 @@ object KyuubiConf {
       .stringConf
       .createWithDefault("bin/python")
 
+  val ENGINE_SPARK_SCALA_SYNC_INTERPRET: ConfigEntry[Boolean] =
+    buildConf("kyuubi.engine.spark.scala.sync.interpret")
+      .doc("Whether to scala interpret engine asynchronously")
+      .version("1.7.0")
+      .booleanConf
+      .createWithDefault(false)
+
   val ENGINE_HIVE_EVENT_LOGGERS: ConfigEntry[Seq[String]] =
     buildConf("kyuubi.engine.hive.event.loggers")
       .doc("A comma separated list of engine history loggers, where engine/session/operation etc" +
