@@ -46,6 +46,8 @@ class ExecuteStatement(
   override def getOperationLog: Option[OperationLog] = Option(operationLog)
   override protected def supportProgress: Boolean = true
 
+  var queryId: Option[Long] = None
+
   override protected def resultSchema: StructType = {
     if (result == null || result.schema.isEmpty) {
       new StructType().add("Result", "string")
@@ -84,6 +86,7 @@ class ExecuteStatement(
         Thread.currentThread().setContextClassLoader(spark.sharedState.jarClassLoader)
         addOperationListener()
         result = spark.sql(statement)
+        queryId = operationListener.flatMap(_.getExecutionId)
         iter = collectAsIterator(result)
         setCompiledStateIfNeeded()
         setState(OperationState.FINISHED)
