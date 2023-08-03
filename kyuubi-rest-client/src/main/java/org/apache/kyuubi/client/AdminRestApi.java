@@ -80,6 +80,14 @@ public class AdminRestApi {
     return Arrays.asList(result);
   }
 
+  public List<Engine> listAllEngines() {
+    Map<String, Object> params = new HashMap<>();
+    Engine[] result =
+        this.getClient()
+            .get(API_BASE_PATH + "/allengines", params, Engine[].class, client.getAuthHeader());
+    return Arrays.asList(result);
+  }
+
   public List<SessionData> listSessions() {
     SessionData[] result =
         this.getClient()
