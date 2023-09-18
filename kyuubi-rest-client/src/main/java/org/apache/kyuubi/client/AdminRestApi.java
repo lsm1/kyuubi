@@ -68,7 +68,7 @@ public class AdminRestApi {
   }
 
   public List<Engine> listEngines(
-      String engineType, String shareLevel, String subdomain, String hs2ProxyUser, Boolean all) {
+      String engineType, String shareLevel, String subdomain, String hs2ProxyUser, String all) {
     Map<String, Object> params = new HashMap<>();
     params.put("type", engineType);
     params.put("sharelevel", shareLevel);
