@@ -20,7 +20,7 @@ import java.util
 
 import org.apache.kyuubi.KyuubiSQLException
 import org.apache.kyuubi.config.KyuubiConf
-import org.apache.kyuubi.config.KyuubiConf.OPERATION_INCREMENTAL_COLLECT
+import org.apache.kyuubi.config.KyuubiConf.{ENGINE_JDBC_FETCH_SIZE, OPERATION_INCREMENTAL_COLLECT}
 import org.apache.kyuubi.engine.jdbc.dialect.{JdbcDialect, JdbcDialects}
 import org.apache.kyuubi.engine.jdbc.session.JdbcSessionImpl
 import org.apache.kyuubi.engine.jdbc.util.SupportServiceLoader
@@ -44,13 +44,17 @@ class JdbcOperationManager(conf: KyuubiConf) extends OperationManager("JdbcOpera
     val incrementalCollect = normalizedConf.get(OPERATION_INCREMENTAL_COLLECT.key).map(
       _.toBoolean).getOrElse(
       session.sessionManager.getConf.get(OPERATION_INCREMENTAL_COLLECT))
+    val fetchSize = normalizedConf.get(ENGINE_JDBC_FETCH_SIZE.key).map(
+      _.toInt).getOrElse(
+      session.sessionManager.getConf.get(ENGINE_JDBC_FETCH_SIZE))
     val executeStatement =
       new ExecuteStatement(
         session,
         statement,
         runAsync,
         queryTimeout,
-        incrementalCollect)
+        incrementalCollect,
+        fetchSize)
     addOperation(executeStatement)
   }
 
@@ -79,8 +83,12 @@ class JdbcOperationManager(conf: KyuubiConf) extends OperationManager("JdbcOpera
       tableName: String,
       tableTypes: util.List[String]): Operation = {
     val query = dialect.getTablesQuery(catalogName, schemaName, tableName, tableTypes)
+    val normalizedConf = session.asInstanceOf[JdbcSessionImpl].normalizedConf
+    val fetchSize = normalizedConf.get(ENGINE_JDBC_FETCH_SIZE.key).map(
+      _.toInt).getOrElse(
+      session.sessionManager.getConf.get(ENGINE_JDBC_FETCH_SIZE))
     val executeStatement =
-      new ExecuteStatement(session, query, false, 0L, true)
+      new ExecuteStatement(session, query, false, 0L, true, fetchSize)
     addOperation(executeStatement)
   }
 
@@ -96,8 +104,12 @@ class JdbcOperationManager(conf: KyuubiConf) extends OperationManager("JdbcOpera
       tableName: String,
       columnName: String): Operation = {
     val query = dialect.getColumnsQuery(session, catalogName, schemaName, tableName, columnName)
+    val normalizedConf = session.asInstanceOf[JdbcSessionImpl].normalizedConf
+    val fetchSize = normalizedConf.get(ENGINE_JDBC_FETCH_SIZE.key).map(
+      _.toInt).getOrElse(
+      session.sessionManager.getConf.get(ENGINE_JDBC_FETCH_SIZE))
     val executeStatement =
-      new ExecuteStatement(session, query, false, 0L, true)
+      new ExecuteStatement(session, query, false, 0L, true, fetchSize)
     addOperation(executeStatement)
   }
 
