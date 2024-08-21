@@ -315,7 +315,7 @@ class KyuubiOperationPerUserSuite
     val closedMetric = s"${MetricsConstants.OPERATION_STATE}.$opType" +
       s".${OperationState.CLOSED.toString.toLowerCase}"
     val finishedCount = MetricsSystem.meterValue(finishedMetric).getOrElse(0L)
-    val closedCount = MetricsSystem.meterValue(finishedMetric).getOrElse(0L)
+    val closedCount = MetricsSystem.meterValue(closedMetric).getOrElse(0L)
     withJdbcStatement() { statement =>
       statement.executeQuery("select engine_name()")
     }
@@ -387,6 +387,31 @@ class KyuubiOperationPerUserSuite
         assert(operationMetrics.get("fetchResultsCount") == Some("1"))
         assert(operationMetrics.get("fetchLogCount") == Some("0"))
       }
+    }
+  }
+
+  test("accumulate the operation state") {
+    val opType = classOf[ExecuteStatement].getSimpleName
+    val runningMetric = s"${MetricsConstants.OPERATION_STATE}.$opType" +
+      s".${OperationState.RUNNING.toString.toLowerCase}"
+    val runningOpMetric = s"${MetricsConstants.OPERATION_STATE}" +
+      s".${OperationState.RUNNING.toString.toLowerCase}"
+    val finishedMetric = s"${MetricsConstants.OPERATION_STATE}.$opType" +
+      s".${OperationState.FINISHED.toString.toLowerCase}"
+    val closedMetric = s"${MetricsConstants.OPERATION_STATE}.$opType" +
+      s".${OperationState.CLOSED.toString.toLowerCase}"
+    val finishedCount = MetricsSystem.meterValue(finishedMetric).getOrElse(0L)
+    val closedCount = MetricsSystem.meterValue(closedMetric).getOrElse(0L)
+    val runningCount = MetricsSystem.meterValue(runningMetric).getOrElse(0L)
+    val runningOPCount = MetricsSystem.meterValue(runningOpMetric).getOrElse(0L)
+    withJdbcStatement() { statement =>
+      statement.executeQuery("select engine_name()")
+    }
+    eventually(timeout(5.seconds), interval(100.milliseconds)) {
+      assert(MetricsSystem.meterValue(finishedMetric).getOrElse(0L) > finishedCount)
+      assert(MetricsSystem.meterValue(closedMetric).getOrElse(0L) > closedCount)
+      assert(MetricsSystem.meterValue(runningMetric).getOrElse(0L) == runningCount)
+      assert(MetricsSystem.meterValue(runningOpMetric).getOrElse(0L) == runningOPCount)
     }
   }
 }
