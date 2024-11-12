@@ -117,15 +117,6 @@ class ExecuteStatement(
           case CANCELED_STATE =>
             setState(OperationState.CANCELED)
 
-          case TIMEDOUT_STATE
-              // Clients less than version 2.1 have no HIVE-4924 Patch,
-              // no queryTimeout parameter and no TIMEOUT status.
-              // When the server enables kyuubi.operation.query.timeout,
-              // this will cause the client of the lower version to get stuck.
-              // Check thrift protocol version <= HIVE_CLI_SERVICE_PROTOCOL_V8(Hive 2.1.0),
-              // convert TIMEDOUT_STATE to CANCELED.
-              if isHive21OrLower => setState(OperationState.CANCELED)
-
           case TIMEDOUT_STATE =>
             setState(OperationState.TIMEOUT)
 

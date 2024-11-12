@@ -17,12 +17,33 @@
 
 package org.apache.kyuubi.server
 
+import org.apache.kyuubi.operation.{OperationHandle, OperationState, OperationStatus}
 import org.apache.kyuubi.service.AbstractBackendService
 import org.apache.kyuubi.session.{KyuubiSessionManager, SessionManager}
+import org.apache.kyuubi.shaded.hive.service.rpc.thrift.TProtocolVersion
 
 class KyuubiBackendService(name: String) extends AbstractBackendService(name) {
 
   def this() = this(classOf[KyuubiBackendService].getSimpleName)
 
   override val sessionManager: SessionManager = new KyuubiSessionManager()
+
+  override def getOperationStatus(
+      operationHandle: OperationHandle,
+      maxWait: Option[Long]): OperationStatus = {
+    val operation = sessionManager.operationManager.getOperation(operationHandle)
+    val operationStatus = super.getOperationStatus(operationHandle, maxWait)
+    // Clients less than version 2.1 have no HIVE-4924 Patch,
+    // no queryTimeout parameter and no TIMEOUT status.
+    // When the server enables kyuubi.operation.query.timeout,
+    // this will cause the client of the lower version to get stuck.
+    // Check thrift protocol version <= HIVE_CLI_SERVICE_PROTOCOL_V8(Hive 2.1.0),
+    // convert TIMEDOUT_STATE to CANCELED.
+    if (operationStatus.state == OperationState.TIMEOUT && operation.getSession.protocol.getValue <=
+        TProtocolVersion.HIVE_CLI_SERVICE_PROTOCOL_V8.getValue) {
+      operationStatus.copy(state = OperationState.CANCELED)
+    } else {
+      operationStatus
+    }
+  }
 }
