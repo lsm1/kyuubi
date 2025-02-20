@@ -43,6 +43,16 @@ class ExecuteStatement(
 
   @volatile private var jdbcStatement: Statement = _
 
+  override protected def beforeRun(): Unit = {
+    OperationLog.setCurrentOperationLog(operationLog)
+    setState(OperationState.PENDING)
+    setHasResultSet(true)
+  }
+
+  override protected def afterRun(): Unit = {
+    OperationLog.removeCurrentOperationLog()
+  }
+
   override protected def runInternal(): Unit = {
     addTimeoutMonitor(queryTimeout)
     if (shouldRunAsync) {
